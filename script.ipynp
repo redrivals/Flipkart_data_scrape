@@ -1,0 +1,94 @@
+import os 
+from selenium import webdriver
+from bs4 import BeautifulSoup
+import time
+import csv
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+
+class Flipkart():
+    
+    def __init__(self):
+        self.current_path= os.getcwd()
+        self.url= 'https://www.flipkart.com'
+        self.driver_path= os.path.join(os.getcwd(),'chromedriver')
+        self.driver= webdriver.Chrome(self.driver_path)
+        self.driver.set_window_size(1024, 768)
+        self.driver.maximize_window()
+
+        
+    def page_load(self):
+        self.driver.get(self.url)
+        try:
+            login_pop = self.driver.find_element_by_class_name('_29YdH8')
+            login_pop.click()
+            print('pop-up closed')
+        except:
+            pass
+        search_field = self.driver.find_element_by_class_name('LM6RPg')
+        search_field.send_keys('smartphone'+ '\n')
+        time.sleep(2)
+        page_html = self.driver.page_source
+        self.soup = BeautifulSoup(page_html,'html.parser')
+    
+    def create_csv_file(self):
+        rowHeaders=["Name","Storage_details","Screen_size","Camera_details","Battery_details","Processor",
+                    "Warranty","Price in Rupees"]
+        self.file_csv = open('Flipkart_output.csv', 'w', newline='', encoding='utf-8')
+        self.mycsv = csv.DictWriter(self.file_csv, fieldnames=rowHeaders)
+        self.mycsv.writeheader()
+    
+    def data_scrap(self):
+        first_page_mobiles = (self.soup.find_all('div',class_='_3O0U0u'))   
+        for i in first_page_mobiles:
+            Name = i.find('img',class_ ='_1Nyybr')['alt']
+            price = i.find('div',class_ ='_1vC4OE _2rQ-NK')
+            details = i.find_all("li")
+            storage = details[0].text
+            screen_size = details[1].text
+            camera_details = details[2].text
+            battery_details =details[3].text
+            processor = details[4].text
+            try:
+                warranty_details = [j.text for j in details if j.text[:14] == "Brand Warranty"][0]
+            except:
+                warranty_details = "No data available"
+            price = price.text[1:]
+            self.mycsv.writerow({"Name":Name, "Storage_details":storage, "Screen_size":screen_size, "Camera_details":camera_details,"Battery_details":battery_details, "Processor":processor, "Warranty":warranty_details, "Price in Rupees":price})
+
+    def nextpage(self):
+        
+        element = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.CLASS_NAME, '_3fVaIS'))
+        )
+        element.click()
+       
+     
+
+            
+            
+
+    
+    
+    def tearDown(self):
+        self.driver.quit()
+        self.file_csv.close()
+
+if __name__=="__main__":
+    
+    Flipkart=Flipkart()
+    Flipkart.page_load()
+    Flipkart.create_csv_file()
+       
+    pages= int(input("How many pages of data you want??"))
+    for i in range(pages):
+        Flipkart.data_scrap()
+        Flipkart.nextpage()
+    
+    
+
+    Flipkart.tearDown()
+    print("Task completed")
